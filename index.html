@@ -10,8 +10,9 @@
       font-family: Arial, sans-serif;
       background: linear-gradient(-45deg, #ff758c, #ff7eb3, #7afcff, #b388ff);
       background-size: 400% 400%;
-      animation: gradient 10s ease infinite;
+      animation: gradient 12s ease infinite;
       color: white;
+      text-align: center;
     }
 
     @keyframes gradient {
@@ -20,167 +21,100 @@
       100% {background-position: 0% 50%;}
     }
 
-    .center {
-      text-align: center;
-      padding: 20px;
-    }
-
-    .chat-box {
-      max-height: 300px;
-      overflow-y: auto;
-      padding: 10px;
-    }
-
-    .bubble {
-      padding: 8px 12px;
-      margin: 5px;
-      border-radius: 15px;
-      display: inline-block;
-      max-width: 70%;
-    }
-
-    .me {
-      background: #ffffffaa;
-      color: black;
-      float: right;
-      clear: both;
-    }
-
-    .other {
-      background: #00000088;
-      float: left;
-      clear: both;
+    .box {
+      margin-top: 100px;
     }
 
     button {
+      padding: 12px 20px;
+      margin: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    input {
       padding: 10px;
       border-radius: 10px;
       border: none;
-      margin: 5px;
+      margin-top: 10px;
+    }
+
+    #mainApp {
+      display: none;
+      margin-top: 40px;
     }
   </style>
 </head>
 <body>
 
-<div id="auth" class="center">
-  <h2>Chapter Forever</h2>
-  <input id="name" placeholder="Name"><br>
-  <input id="username" placeholder="Username"><br>
-  <input id="password" type="password" placeholder="Password"><br>
-  <button onclick="register()">Register</button>
-  <button onclick="login()">Login</button>
-</div>
+<div id="loginBox" class="box">
+  <h2>Who are you?</h2>
+  <button onclick="selectUser('Mridul')">Mridul</button>
+  <button onclick="selectUser('Aishu')">Aishu</button>
 
-<div id="app" style="display:none;">
-  <div class="center">
-    <h1>Chapter Forever</h1>
-    <h3>Crafted By MIROVA</h3>
-  </div>
-
-  <div class="chat-box" id="chat"></div>
-
-  <div class="center">
-    <input id="msg" placeholder="Type message">
-    <button onclick="sendMessage()">Send</button>
-    <button onclick="deleteAll()">Delete Chat</button>
-  </div>
-
-  <div class="center">
-    <h3>Thinking of You 💭</h3>
-    <button onclick="thinking()">Thinking of you</button>
-    <p id="lastThought"></p>
+  <div id="passwordArea" style="display:none;">
+    <p id="selectedUser"></p>
+    <input type="password" id="password" placeholder="Enter Password">
+    <br>
+    <button onclick="checkPassword()">Login</button>
   </div>
 </div>
 
-<script type="module">
+<div id="mainApp">
+  <h1>Chapter Forever</h1>
+  <h3>Crafted By MIROVA</h3>
+  <p id="welcomeUser"></p>
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, getDocs, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  <button onclick="logout()">Logout</button>
+</div>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBAsU8AlBCmpxa3CRmPPYbwNdpbF_aKtUo",
-  authDomain: "chapterforever-b6f07.firebaseapp.com",
-  projectId: "chapterforever-b6f07",
-};
+<script>
+  let currentUser = "";
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth();
-const db = getFirestore();
+  const passwords = {
+    "Mridul": "photos#2009",
+    "Aishu": "itsmeaishu"
+  };
 
-let currentUser;
+  function selectUser(user) {
+    currentUser = user;
+    document.getElementById("passwordArea").style.display = "block";
+    document.getElementById("selectedUser").innerText = "Enter password for " + user;
+  }
 
-window.register = async function() {
-  const email = username.value + "@chapter.com";
-  const pass = password.value;
+  function checkPassword() {
+    const entered = document.getElementById("password").value;
 
-  const userCred = await createUserWithEmailAndPassword(auth, email, pass);
-  currentUser = userCred.user;
+    if (entered === passwords[currentUser]) {
+      localStorage.setItem("chapterUser", currentUser);
+      openApp();
+    } else {
+      alert("Wrong password ❤️");
+    }
+  }
 
-  await setDoc(doc(db, "users", currentUser.uid), {
-    name: name.value,
-    username: username.value
-  });
+  function openApp() {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("mainApp").style.display = "block";
+    document.getElementById("welcomeUser").innerText = "Welcome, " + currentUser;
+  }
 
-  startApp();
-}
+  function logout() {
+    localStorage.removeItem("chapterUser");
+    location.reload();
+  }
 
-window.login = async function() {
-  const email = username.value + "@chapter.com";
-  const pass = password.value;
-
-  const userCred = await signInWithEmailAndPassword(auth, email, pass);
-  currentUser = userCred.user;
-  startApp();
-}
-
-function startApp() {
-  document.getElementById("auth").style.display = "none";
-  document.getElementById("app").style.display = "block";
-  loadMessages();
-}
-
-window.sendMessage = async function() {
-  await addDoc(collection(db, "messages"), {
-    text: msg.value,
-    sender: currentUser.uid,
-    time: new Date()
-  });
-  msg.value = "";
-}
-
-function loadMessages() {
-  const q = query(collection(db, "messages"), orderBy("time"));
-  onSnapshot(q, (snapshot) => {
-    chat.innerHTML = "";
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      const div = document.createElement("div");
-      div.className = "bubble " + (data.sender === currentUser.uid ? "me" : "other");
-      div.innerHTML = data.text + "<br><small>" + new Date(data.time.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + "</small>";
-      chat.appendChild(div);
-    });
-  });
-}
-
-window.deleteAll = async function() {
-  const querySnapshot = await getDocs(collection(db, "messages"));
-  querySnapshot.forEach((docSnap) => {
-    deleteDoc(doc(db, "messages", docSnap.id));
-  });
-}
-
-window.thinking = async function() {
-  const now = new Date();
-  await setDoc(doc(db, "thinking", "data"), {
-    lastThought: now
-  });
-  lastThought.innerText = "Last thought at: " + now.toLocaleString();
-
-  // Telegram Bot Notification
-  fetch("https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage?chat_id=YOUR_CHAT_ID&text=She is thinking of you ❤️");
-}
-
+  // Auto login if already logged in
+  window.onload = function() {
+    const saved = localStorage.getItem("chapterUser");
+    if (saved) {
+      currentUser = saved;
+      openApp();
+    }
+  }
 </script>
+
 </body>
 </html>
