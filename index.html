@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chapter Forever</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(-45deg, #ff758c, #ff7eb3, #7afcff, #b388ff);
+      background-size: 400% 400%;
+      animation: gradient 10s ease infinite;
+      color: white;
+    }
+
+    @keyframes gradient {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+
+    .center {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .chat-box {
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    .bubble {
+      padding: 8px 12px;
+      margin: 5px;
+      border-radius: 15px;
+      display: inline-block;
+      max-width: 70%;
+    }
+
+    .me {
+      background: #ffffffaa;
+      color: black;
+      float: right;
+      clear: both;
+    }
+
+    .other {
+      background: #00000088;
+      float: left;
+      clear: both;
+    }
+
+    button {
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="auth" class="center">
+  <h2>Chapter Forever</h2>
+  <input id="name" placeholder="Name"><br>
+  <input id="username" placeholder="Username"><br>
+  <input id="password" type="password" placeholder="Password"><br>
+  <button onclick="register()">Register</button>
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="app" style="display:none;">
+  <div class="center">
+    <h1>Chapter Forever</h1>
+    <h3>Crafted By MIROVA</h3>
+  </div>
+
+  <div class="chat-box" id="chat"></div>
+
+  <div class="center">
+    <input id="msg" placeholder="Type message">
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="deleteAll()">Delete Chat</button>
+  </div>
+
+  <div class="center">
+    <h3>Thinking of You 💭</h3>
+    <button onclick="thinking()">Thinking of you</button>
+    <p id="lastThought"></p>
+  </div>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, getDocs, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth();
+const db = getFirestore();
+
+let currentUser;
+
+window.register = async function() {
+  const email = username.value + "@chapter.com";
+  const pass = password.value;
+
+  const userCred = await createUserWithEmailAndPassword(auth, email, pass);
+  currentUser = userCred.user;
+
+  await setDoc(doc(db, "users", currentUser.uid), {
+    name: name.value,
+    username: username.value
+  });
+
+  startApp();
+}
+
+window.login = async function() {
+  const email = username.value + "@chapter.com";
+  const pass = password.value;
+
+  const userCred = await signInWithEmailAndPassword(auth, email, pass);
+  currentUser = userCred.user;
+  startApp();
+}
+
+function startApp() {
+  document.getElementById("auth").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  loadMessages();
+}
+
+window.sendMessage = async function() {
+  await addDoc(collection(db, "messages"), {
+    text: msg.value,
+    sender: currentUser.uid,
+    time: new Date()
+  });
+  msg.value = "";
+}
+
+function loadMessages() {
+  const q = query(collection(db, "messages"), orderBy("time"));
+  onSnapshot(q, (snapshot) => {
+    chat.innerHTML = "";
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const div = document.createElement("div");
+      div.className = "bubble " + (data.sender === currentUser.uid ? "me" : "other");
+      div.innerHTML = data.text + "<br><small>" + new Date(data.time.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + "</small>";
+      chat.appendChild(div);
+    });
+  });
+}
+
+window.deleteAll = async function() {
+  const querySnapshot = await getDocs(collection(db, "messages"));
+  querySnapshot.forEach((docSnap) => {
+    deleteDoc(doc(db, "messages", docSnap.id));
+  });
+}
+
+window.thinking = async function() {
+  const now = new Date();
+  await setDoc(doc(db, "thinking", "data"), {
+    lastThought: now
+  });
+  lastThought.innerText = "Last thought at: " + now.toLocaleString();
+
+  // Telegram Bot Notification
+  fetch("https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage?chat_id=YOUR_CHAT_ID&text=She is thinking of you ❤️");
+}
+
+</script>
+</body>
+</html>
